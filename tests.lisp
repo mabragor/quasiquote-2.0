@@ -18,4 +18,11 @@
 (test basic
   (is (equal '(nil :just-quote-it!) (multiple-value-list (%codewalk-dig-form '(dig nil)))))
   (is (equal '(nil :just-form-it!) (multiple-value-list (%codewalk-dig-form '(dig (inject a))))))
-  (is (equal '(nil :just-form-it!) (multiple-value-list (%codewalk-dig-form '(dig 2 (inject 2 a)))))))
+  (is (equal '(nil :just-form-it!) (multiple-value-list (%codewalk-dig-form '(dig 2 (inject 2 a))))))
+  (is (equal '((((inject d)) ((inject b) c (inject d))) nil)
+	     (multiple-value-list (%codewalk-dig-form '(dig (a (inject b) c (inject d)))))))
+  (is (equal '(nil nil)
+	     (multiple-value-list (%codewalk-dig-form '(dig (dig (a (inject b) c (inject d))))))))
+  (is (equal '((((inject 2 d))) nil)
+	     (multiple-value-list (%codewalk-dig-form '(dig (dig (a (inject b) c (inject 2 d)))))))))
+  

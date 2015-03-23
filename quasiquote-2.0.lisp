@@ -41,8 +41,8 @@
 
 (defun injector-subform (form)
   (if (equal 2 (length form))
-      (cadr form)
-      (caddr form)))
+      (cdr form)
+      (cddr form)))
 
 (defun transparent-p (form)
   (or (eq (car form) 'dig)
@@ -61,24 +61,36 @@
     (search-all-active-sites (injector-subform form) nil)))
 
 (defun search-all-active-sites (form toplevel-p)
-  (if toplevel-p
-      (cond ((atom form) (format t "imhere~%") :just-quote-it!)
-	    ((injector-form-p form) (if (equal *depth* (injector-level form))
-					:just-form-it!
-					(if (transparent-p form)
-					    (look-into-injector form))))
-	    (t (search-all-active-sites (car form) nil)
-	       (search-all-active-sites (cdr form) nil)))
-      (if (consp form)
-	  (cond ((dig-form-p form) (if (transparent-p form)
-				       (look-into-dig form)))
-		((injector-form-p (car form)) (if (equal *depth* (injector-level form))
-						  (progn (push form *injectors*)
-							 nil)
-						  (if (transparent-p form)
-						      (look-into-injector form))))
+  (format t "SEARCH-ALL-ACTIVE-SITES: got form ~a~%" form)
+  (if (not form)
+      nil
+      (if toplevel-p
+	  (cond ((atom (car form)) (format t "imhere~%") :just-quote-it!)
+		((injector-form-p (car form)) (if (equal *depth* (injector-level (car form)))
+						  :just-form-it!
+						  (if (transparent-p (car form))
+						      (look-into-injector (car form)))))
+		((dig-form-p (car form))
+		 (format t "Got dig form ~a~%" form)
+		 (if (transparent-p (car form))
+		     (look-into-dig (car form))))
 		(t (search-all-active-sites (car form) nil)
-		   (search-all-active-sites (cdr form) nil))))))
+		   (search-all-active-sites (cdr form) nil)))
+	  (when (consp form)
+	    (cond ((dig-form-p (car form))
+		   (format t "Got dig form ~a~%" form)
+		   (if (transparent-p (car form))
+		       (look-into-dig (car form))))
+		  ((injector-form-p (car form))
+		   (format t "Got injector form ~a ~a ~a~%" form *depth* (injector-level (car form)))
+		   (if (equal *depth* (injector-level (car form)))
+		       (progn (push form *injectors*)
+			      nil)
+		       (if (transparent-p (car form))
+			   (look-into-injector (car form)))))
+		  (t (search-all-active-sites (car form) nil)))
+	    (search-all-active-sites (cdr form) nil)))))
+
 	  
 	      
 (defun codewalk-dig-form (form)
@@ -92,6 +104,27 @@
       (let ((*depth* (+ (injector-level form) *depth*)))
 	(codewalk-dig-form (injector-subform form)))))
 
+(defun transform-dig-form (form)
+  (let ((the-form (copy-tree form)))
+    (multiple-value-bind (sites cmd) (%codewalk-dig-form the-form)
+      (cond ((eq cmd :just-quote-it!)
+	     `(quote ,(car (injector-subform the-form))))
+	    ((eq cmd :just-form-it!)
+	     (car (injector-subform the-form)))
+	    (t (let ((gensyms (mapcar (lambda (x)
+					(declare (ignore x))
+					(gensym "INJECTOR"))
+				      sites))
+		     (g!-list (gensym "LIST")))
+		 (iter (for site in sites)
+		       (for gensym in gensyms)
+		       (collect `(,gensym ,(car site)) into lets)
+		       (setf (car site) nil)
+		       (collect `(setf (car ,site) ,gensym) into setfs)
+		       (finally (return `(let ,lets
+					   (let ((,g!-list ,the-form))
+					     ,@setfs
+					     ,g!-list)))))))))))
     
 ;; (defmacro dig (n-or-form &optional (form nil form-p))
 ;;   (if (not form-p)
