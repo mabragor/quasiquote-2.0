@@ -16,4 +16,6 @@
       (error "Tests failed."))))
 
 (test basic
-  (is (equal '(nil :just-quote-it!) (multiple-value-list (%codewalk-dig-form '(dig nil))))))
+  (is (equal '(nil :just-quote-it!) (multiple-value-list (%codewalk-dig-form '(dig nil)))))
+  (is (equal '(nil :just-form-it!) (multiple-value-list (%codewalk-dig-form '(dig (inject a))))))
+  (is (equal '(nil :just-form-it!) (multiple-value-list (%codewalk-dig-form '(dig 2 (inject 2 a)))))))
