@@ -26,3 +26,8 @@
   (is (equal '((((inject 2 d))) nil)
 	     (multiple-value-list (%codewalk-dig-form '(dig (dig (a (inject b) c (inject 2 d)))))))))
   
+(test transform
+  (is (equal '(quote a) (transform-dig-form '(dig a))))
+  (is (equal '(quote a) (transform-dig-form '(dig 2 a))))
+  (is (equal 'a (transform-dig-form '(dig (inject a)))))
+  (is (equal 'a (transform-dig-form '(dig 2 (inject 2 a))))))
