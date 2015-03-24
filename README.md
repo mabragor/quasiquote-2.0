@@ -83,6 +83,10 @@ All quasiquote-2.0 operators accept optional "depth" argument, that is
 (INJECT N FORM) decreases depth by N instead of one.
 
 
+In fact, with ENABLE-QUASIQUOTE-2.0, say, ,,,,,FORM (5 quotes) reads as (INJECT 5 FORM)
+and ,,,,,@FORM as (SPLICE 5 FORM)
+
+
 TODO
 ----
 
