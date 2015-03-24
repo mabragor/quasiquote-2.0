@@ -26,7 +26,7 @@
   `(defun ,name (stream char)
      (let ((anti-depth (1+ (read-n-chars stream char))))
        (list (if (char= #\@ (peek-char nil stream t nil t))
-		 ',splice-symbol
+		 (progn (read-char stream t nil t) ',splice-symbol)
 		 ',inject-symbol)
 	     anti-depth
 	     (read stream t nil t)))))
@@ -36,3 +36,25 @@
 
 
 (defvar *previous-readtables* nil)
+
+(defun %enable-quasiquote-2.0 ()
+  (push *readtable*
+        *previous-readtables*)
+  (setq *readtable* (copy-readtable))
+  (set-macro-character #\` #'dig-reader)
+  (set-macro-character #\, #'inject-reader)
+  (values))
+
+(defun %disable-quasiquote-2.0 ()
+  (if *previous-readtables*
+      (setf *readtable* (pop *previous-readtables*))
+      (setf *readtable* (copy-readtable nil)))
+  (values))
+
+(defmacro enable-quasiquote-2.0 ()
+  `(eval-when (:compile-toplevel :load-toplevel :execute)
+     (%enable-quasiquote-2.0)))
+(defmacro disable-quasiquote-2.0 ()
+  `(eval-when (:compile-toplevel :load-toplevel :execute)
+     (%disable-quasiquote-2.0)))
+  
