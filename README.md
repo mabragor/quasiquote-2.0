@@ -87,6 +87,13 @@ In fact, with ENABLE-QUASIQUOTE-2.0, say, ,,,,,FORM (5 quotes) reads as (INJECT 
 and ,,,,,@FORM as (SPLICE 5 FORM)
 
 
+More examples
+-------------
+
+For fairly complicated example (using ,,,@) see DEFINE-BINOP-DEFINER macro
+in CG-LLVM (https://github.com/mabragor/cg-llvm/src/basics.lisp),
+desire to write which was a motivation for this whole project.
+
 TODO
 ----
 
