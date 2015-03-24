@@ -35,6 +35,27 @@
 (defun foo (b d)
   (dig (a (inject b) c (inject d))))
 
+(defun foo1-transparent (x)
+  (declare (ignorable x))
+  (dig (dig (a (inject (b (inject x) c))))))
+
+(defun foo1-opaque (x)
+  (declare (ignorable x))
+  (dig (dig (a (oinject (b (inject x) c))))))
+
+
 (test foos
   (is (equal '(a 1 c 2) (foo 1 2)))
   (is (equal '(a 100 c 200) (foo 100 200))))
+
+(test opaque-vs-transparent
+  (is (equal '(quote a) (transform-dig-form '(odig a))))
+  (is (equal '(quote a) (transform-dig-form '(odig 2 a))))
+  (is (equal 'a (transform-dig-form '(odig (inject a)))))
+  (is (equal 'a (transform-dig-form '(odig 2 (inject 2 a)))))
+  (is (equal '(odig (inject 2 a)) (eval (transform-dig-form '(dig (odig (inject 2 a)))))))
+  (is (equal '(dig (a (inject (b 3 c)))) (foo1-transparent 3)))
+  (is (equal '(dig (a (oinject (b (inject x) c)))) (foo1-opaque 3))))
+	     
+
+  

@@ -30,9 +30,11 @@
 (defun reset-injectors ()
   (setf *injectors* nil))
 
+(defparameter *known-injectors* '(inject splice oinject osplice))
+
 (defun injector-form-p (form)
   (and (consp form)
-       (eq (car form) 'inject)))
+       (find (car form) *known-injectors* :test #'eq)))
 
 (defun injector-level (form)
   (if (equal 2 (length form))
@@ -53,9 +55,11 @@
     (multiple-value-bind (subform subpath) (injector-subform form)
       (search-all-active-sites subform (append subpath path) nil))))
 
+(defparameter *known-diggers* '(dig odig))
+
 (defun dig-form-p (form)
   (and (consp form)
-       (eq 'dig (car form))))
+       (find (car form) *known-diggers* :test #'eq)))
 
 (defun look-into-dig (form path)
   (let ((*depth* (+ *depth* (injector-level form))))
@@ -126,21 +130,32 @@
 	     `(quote ,(car (injector-subform the-form))))
 	    ((eq cmd :just-form-it!)
 	     (car (injector-subform (car (injector-subform the-form)))))
-	    (t (let ((gensyms (mapcar (lambda (x)
-					(declare (ignore x))
-					(gensym "INJECTOR"))
-				      site-paths))
-		     (g!-list (gensym "LIST")))
-		 (iter (for (site . path) in site-paths)
-		       (for gensym in gensyms)
-		       (collect `(,gensym ,(car (injector-subform (car site)))) into lets)
-		       (setf (car site) nil)
-		       (collect `(setf ,(path->setfable path g!-list) ,gensym) into setfs)
-		       (finally (return `(let ,lets
-					   (let ((,g!-list ,(tree->cons-code (car (injector-subform the-form)))))
-					     ,@setfs
-					     ,g!-list)))))))))))
-    
+	    (t (if (not site-paths)
+		   (tree->cons-code (car (injector-subform the-form)))
+		   (let ((gensyms (mapcar (lambda (x)
+					    (declare (ignore x))
+					    (gensym "INJECTOR"))
+					  site-paths))
+			 (g!-list (gensym "LIST")))
+		     (iter (for (site . path) in site-paths)
+			   (for gensym in gensyms)
+			   (collect `(,gensym ,(car (injector-subform (car site)))) into lets)
+			   (setf (car site) nil)
+			   (collect `(setf ,(path->setfable path g!-list) ,gensym) into setfs)
+			   (finally (return `(let ,lets
+					       (let ((,g!-list ,(tree->cons-code (car (injector-subform the-form)))))
+						 ,@setfs
+						 ,g!-list))))))))))))
+
+
+;; There are two kinds of recursive injection that may happen:
+;;   * compile-time injection:
+;;     (dig (inject (dig (inject a)))) -- this type will be handled automatically by subsequent macroexpansions
+;;   * run-time injection:
+;;     (dig (dig (inject 2 a)))
+;;     and A is '(dig (inject 3 'foo)) -- this one we guard against ? (probably, first we just ignore it
+;;     -- do not warn about it, and then it wont really happen.
+
       
 ;;       (labels ((rec (smth)
 ;; 		 (if (and (consp smth)
