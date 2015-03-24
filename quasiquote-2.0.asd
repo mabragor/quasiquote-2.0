@@ -12,7 +12,8 @@
   :license "MIT"
   :depends-on (#:iterate)
   :components ((:file "package")
-               (:file "quasiquote-2.0")))
+               (:file "quasiquote-2.0")
+	       (:file "macros")))
 
 (defsystem :quasiquote-2.0-tests
   :description "Tests for QUASIQUOTE-2.0"

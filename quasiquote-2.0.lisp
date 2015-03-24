@@ -141,13 +141,6 @@
 					     ,@setfs
 					     ,g!-list)))))))))))
     
-(defmacro dig (n-or-form &optional (form nil form-p))
-  (if (not form-p)
-      `(dig 1 ,n-or-form)
-      (transform-dig-form `(dig ,n-or-form ,form))))
-
-(defun foo (d b)
-  (dig (a (inject b) c (inject d))))
       
 ;;       (labels ((rec (smth)
 ;; 		 (if (and (consp smth)
