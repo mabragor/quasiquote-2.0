@@ -43,6 +43,9 @@
   (declare (ignorable x))
   (dig (dig (a (oinject (b (inject x) c))))))
 
+(defun foo-recursive (x y)
+  (dig (a (inject (list x (dig (c (inject y))))))))
+  
 
 (test foos
   (is (equal '(a 1 c 2) (foo 1 2)))
@@ -56,6 +59,14 @@
   (is (equal '(odig (inject 2 a)) (eval (transform-dig-form '(dig (odig (inject 2 a)))))))
   (is (equal '(dig (a (inject (b 3 c)))) (foo1-transparent 3)))
   (is (equal '(dig (a (oinject (b (inject x) c)))) (foo1-opaque 3))))
+
+(test recursive-compile-time
+  (is (equal '(a (1 (c 2))) (foo-recursive 1 2))))
 	     
 
-  
+(test splicing
+  (is (equal '(a b c d) (eval (transform-dig-form '(dig (a (splice '(b c)) d))))))
+  (is (equal '(b c d) (eval (transform-dig-form '(dig ((splice '(b c)) d))))))
+  (is (equal '(a b c) (eval (transform-dig-form '(dig (a (splice '(b c)))))))))
+
+

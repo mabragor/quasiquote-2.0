@@ -67,28 +67,28 @@
       (search-all-active-sites subform (append subpath path) nil))))
 
 (defun search-all-active-sites (form path toplevel-p)
-  (format t "SEARCH-ALL-ACTIVE-SITES: got form ~a~%" form)
+  ;; (format t "SEARCH-ALL-ACTIVE-SITES: got form ~a~%" form)
   (if (not form)
       nil
       (if toplevel-p
-	  (cond ((atom (car form)) (format t "imhere~%") :just-quote-it!)
+	  (cond ((atom (car form)) :just-quote-it!)
 		((injector-form-p (car form)) (if (equal *depth* (injector-level (car form)))
 						  :just-form-it!
 						  (if (transparent-p (car form))
 						      (look-into-injector (car form) (cons 'car path)))))
 		((dig-form-p (car form))
-		 (format t "Got dig form ~a~%" form)
+		 ;; (format t "Got dig form ~a~%" form)
 		 (if (transparent-p (car form))
 		     (look-into-dig (car form) (cons 'car path))))
 		(t (search-all-active-sites (car form) (cons 'car path) nil)
 		   (search-all-active-sites (cdr form) (cons 'cdr path) nil)))
 	  (when (consp form)
 	    (cond ((dig-form-p (car form))
-		   (format t "Got dig form ~a~%" form)
+		   ;; (format t "Got dig form ~a~%" form)
 		   (if (transparent-p (car form))
 		       (look-into-dig (car form) (cons 'car path))))
 		  ((injector-form-p (car form))
-		   (format t "Got injector form ~a ~a ~a~%" form *depth* (injector-level (car form)))
+		   ;; (format t "Got injector form ~a ~a ~a~%" form *depth* (injector-level (car form)))
 		   (if (equal *depth* (injector-level (car form)))
 		       (progn (push (cons form (cons 'car path)) *injectors*)
 			      nil)
@@ -123,6 +123,12 @@
       `(cons ,(tree->cons-code (car tree))
 	     ,(tree->cons-code (cdr tree)))))
 
+(defparameter *known-splicers* '(splice osplice))
+
+(defun splicing-injector (form)
+  (and (consp form)
+       (find (car form) *known-splicers* :test #'eq)))
+
 (defun transform-dig-form (form)
   (let ((the-form (copy-tree form)))
     (multiple-value-bind (site-paths cmd) (%codewalk-dig-form the-form)
@@ -132,20 +138,51 @@
 	     (car (injector-subform (car (injector-subform the-form)))))
 	    (t (if (not site-paths)
 		   (tree->cons-code (car (injector-subform the-form)))
-		   (let ((gensyms (mapcar (lambda (x)
-					    (declare (ignore x))
-					    (gensym "INJECTOR"))
-					  site-paths))
-			 (g!-list (gensym "LIST")))
-		     (iter (for (site . path) in site-paths)
-			   (for gensym in gensyms)
-			   (collect `(,gensym ,(car (injector-subform (car site)))) into lets)
-			   (setf (car site) nil)
-			   (collect `(setf ,(path->setfable path g!-list) ,gensym) into setfs)
-			   (finally (return `(let ,lets
-					       (let ((,g!-list ,(tree->cons-code (car (injector-subform the-form)))))
-						 ,@setfs
-						 ,g!-list))))))))))))
+		   (really-transform-dig-form the-form site-paths)))))))
+
+(defmacro make-list-form (o!-n form)
+  (let ((g!-n (gensym "N"))
+	(g!-i (gensym "I"))
+	(g!-res (gensym "RES")))
+    `(let ((,g!-n ,o!-n)
+	   (,g!-res nil))
+       (dotimes (,g!-i ,g!-n)
+	 (push ,form ,g!-res))
+       (nreverse ,g!-res))))
+
+(defun mk-splicing-injector-let (x)
+  `(let ((it ,(car (injector-subform x))))
+     (assert (listp it))
+     (copy-list it)))
+
+
+
+(defun mk-splicing-injector-setf (path g!-list g!-splicee)
+  (assert (eq 'car (car path)))
+  (let ((g!-rest (gensym "REST")))
+    `(let ((,g!-rest ,(path->setfable (cons 'cdr (cdr path)) g!-list)))
+       (assert (or (not ,g!-rest) (consp ,g!-rest)))
+       (setf ,(path->setfable (cdr path) g!-list) ,g!-splicee)
+       (setf (cdr (last ,g!-splicee)) ,g!-rest))))
+
+
+(defun really-transform-dig-form (the-form site-paths)
+  (let ((gensyms (make-list-form (length site-paths) (gensym "INJECTEE"))))
+    (let ((g!-list (gensym "LIST")))
+      (iter (for (site . path) in site-paths)
+	    (for gensym in gensyms)
+	    (collect `(,gensym ,(if (not (splicing-injector (car site)))
+				    (car (injector-subform (car site)))
+				    (mk-splicing-injector-let (car site)))) into lets)
+	    (if (not (splicing-injector (car site)))
+		(collect `(setf ,(path->setfable path g!-list) ,gensym) into setfs)
+		(collect (mk-splicing-injector-setf path g!-list gensym) into splicing-setfs))
+	    (setf (car site) nil)
+	    (finally (return `(let ,lets
+				(let ((,g!-list ,(tree->cons-code (car (injector-subform the-form)))))
+				  ,@setfs
+				  ,@splicing-setfs
+				  ,g!-list))))))))
 
 
 ;; There are two kinds of recursive injection that may happen:
@@ -157,16 +194,17 @@
 ;;     -- do not warn about it, and then it wont really happen.
 
       
-;;       (labels ((rec (smth)
-;; 		 (if (and (consp smth)
-;; 			  (consp (car smth)))
-;; 		     (cond ((eq 'dig (caar smth) (let ((*depth* (1+ *depth*)))
-;; 						   (rec (cdr smth))))
-;; 			    ;; OK, let's try to write inject first
-;; 			    (eq 'inject (caar smth) ...)
-;; 			    (t (rec (car smth))
-;; 			       (rec (cdr smth))))))))
-;; 	(rec form))))
+;; OK, now how to implement splicing ?
+;;   (dig (a (splice (list b c)) d))
+;; should transform into code that yields
+;;   (a b c d)
+;; what this code is?
+;;   (let ((#:a (copy-list (list b c))))
+;;     (let ((#:res (cons 'a nil 'd)))
+;;       ;; all non-splicing injects go here, as they do not spoil the path-structure
+;;       (setf (cdr #:res) #:a)
+;;       (setf (cdr (last #:a)) (cdr (cdr #:res)))
+;;       #:res)))
 
 
 ;; How this macroexpansion should work in general?

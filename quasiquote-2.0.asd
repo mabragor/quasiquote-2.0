@@ -11,6 +11,7 @@
   :author "Alexandr Popolitov <popolit@gmail.com>"
   :license "MIT"
   :depends-on (#:iterate)
+  :version "0.1"
   :components ((:file "package")
                (:file "quasiquote-2.0")
 	       (:file "macros")))
