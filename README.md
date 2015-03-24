@@ -40,17 +40,18 @@ So, how is this effect achieved?
 DIG and INJECT and SPLICE
 -------------------------
 
-Well, main difference from usual quasiquote that all essential transformations
+Well, main technical difference from usual quasiquote is that all essential transformations
 happen at macroexpansion-time, rather than at read-time.
 
 The ENABLE-QUASIQUOTE-2.0 macro just installs reader that reads
 `FORM as (DIG FORM), ,FORM as (INJECT FORM) and ,@FORM as (SPLICE FORM).
-You can just as well type DIG's, INJECT's and SPLICE's directly, or
-roll your own convenient reader syntax (pull requests are welcome).
+You can just as well type DIG's, INJECT's and SPLICE's directly, 
+(in particular, when writing utility functions that generate macro-generating code)
+or roll your own convenient reader syntax (pull requests are welcome).
 
 
-Then DIG is just a macro with a peculiar macroexpansion, namely, the rules
-are as follows:
+Then DIG is just a macro with a peculiar macroexpansion, the rules
+are these:
   * the tree of a form is walked, with keeping track of the "depth"
   * each DIG, occuring on the way, increases depth by one (hence the name)
   * each INJECT or SPLICE:
@@ -58,6 +59,8 @@ are as follows:
     * if the resulting depth is zero, is evaluates its subform
     * SPLICE splices the form, same as ordinary ,@ does
 
+At "level 1", i.e. when only ` , and ,@ are used, and not, say `` ,, ,', ,,@ ,',@
+this behaves exactly as usual quasiquotation.
 
 ODIG and OINJECT and OSPLICE
 ----------------------------
