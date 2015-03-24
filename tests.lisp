@@ -67,6 +67,11 @@
 (test splicing
   (is (equal '(a b c d) (eval (transform-dig-form '(dig (a (splice '(b c)) d))))))
   (is (equal '(b c d) (eval (transform-dig-form '(dig ((splice '(b c)) d))))))
-  (is (equal '(a b c) (eval (transform-dig-form '(dig (a (splice '(b c)))))))))
+  (is (equal '(a b c) (eval (transform-dig-form '(dig (a (splice '(b c))))))))
+  (is (equal '(a b) (eval (transform-dig-form '(dig (a (splice nil) b))))))
+  (is (equal '(b) (eval (transform-dig-form '(dig ((splice nil) b))))))
+  (is (equal '(a) (eval (transform-dig-form '(dig (a (splice nil)))))))
+  (is (equal '() (eval (transform-dig-form '(dig ((splice nil)))))))
+  (is (equal '(a b) (eval (transform-dig-form '(dig ((splice '(a b)))))))))
 
 

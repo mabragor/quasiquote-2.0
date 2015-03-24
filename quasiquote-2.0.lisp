@@ -162,8 +162,11 @@
   (let ((g!-rest (gensym "REST")))
     `(let ((,g!-rest ,(path->setfable (cons 'cdr (cdr path)) g!-list)))
        (assert (or (not ,g!-rest) (consp ,g!-rest)))
-       (setf ,(path->setfable (cdr path) g!-list) ,g!-splicee)
-       (setf (cdr (last ,g!-splicee)) ,g!-rest))))
+       (if (not ,g!-splicee)
+	   (setf ,(path->setfable (cdr path) g!-list)
+		 ,g!-rest)
+	   (progn (setf ,(path->setfable (cdr path) g!-list) ,g!-splicee)
+		  (setf (cdr (last ,g!-splicee)) ,g!-rest))))))
 
 
 (defun really-transform-dig-form (the-form site-paths)
