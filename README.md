@@ -1,73 +1,91 @@
 quasiquote-2.0
+==============
+
+Why should it be hard to write macros that write other macros?
+Well, it shouldn't!
+
+quasiquote-2.0 defines slightly different rules for quasiquotation,
+that make writing macro-writing macros very smooth experience.
+
+```lisp
+(quasiquote-2.0:enable-quasiquote-2.0)
+
+(defmacro define-my-macro (name args &body body)
+  `(defmacro ,name ,args
+     `(sample-thing-to-macroexpand-to
+        ,,@body)))
+
+(define-my-macro foo (x y)
+  ,x
+  ,y)
+
+(define-my-macro bar (&body body)
+  ,@body)
+```
+
+The "injections" in macros FOO and BAR work as expected, as if I had written
+(using usual quasiquote rules, but will work the same in quasiquote-2.0)
+```lisp
+(defmacro foo (x y)
+  `(sample-thing-to-macroexpand-to ,x ,y))
+
+(defmacro bar (&body body)
+  `(sample-thing-to-macroexpand-to ,@body))
+```
+
+
+So, how is this effect achieved?
+
+
+DIG and INJECT and SPLICE
+-------------------------
+
+Well, main difference from usual quasiquote that all essential transformations
+happen at macroexpansion-time, rather than at read-time.
+
+The ENABLE-QUASIQUOTE-2.0 macro just installs reader that reads
+`FORM as (DIG FORM), ,FORM as (INJECT FORM) and ,@FORM as (SPLICE FORM).
+You can just as well type DIG's, INJECT's and SPLICE's directly, or
+roll your own convenient reader syntax (pull requests are welcome).
+
+
+Then DIG is just a macro with a peculiar macroexpansion, namely, the rules
+are as follows:
+  * the tree of a form is walked, with keeping track of the "depth"
+  * each DIG, occuring on the way, increases depth by one (hence the name)
+  * each INJECT or SPLICE:
+    * decreases depth by one
+    * if the resulting depth is zero, is evaluates its subform
+    * SPLICE splices the form, same as ordinary ,@ does
+
+
+ODIG and OINJECT and OSPLICE
+----------------------------
+
+Sometimes you don't want evaluation to look into the structure of INJECT or SPLICE or DIG,
+if the depth does not match. In these cases you need "opaque" versions of
+DIG, INJECT and SPLICE, named, respectively, ODIG, OINJECT and OSPLICE.
+
+```lisp
+(dig (dig (inject a (inject b)))) ; here injection of B would occur
+
+(dig (dig (oinject a (inject b)))) ; and here not
+```
+
+The N argument
 --------------
 
-Why is it so hard to write macros, that write other macros?
-Maybe, because we need to rethink quasiquote a little bit...
+All quasiquote-2.0 operators accept optional "depth" argument, that is
+(DIG N FORM) increases depth by N instead of one and
+(INJECT N FORM) decreases depth by N instead of one.
 
 
-I have this piece of code:
+TODO
+----
 
-(defmacro define-no-wrap-binop (name &body type-checks)
-  `(defun ,name (op1 op2 &key no-signed-wrap no-unsigned-wrap)
-     (let ((top1 (imply-type op1))
-	   (top2 (imply-type op2)))
-       (assert (llvm-same-typep top1 top2))
-       ,@type-checks
-       (emit-resulty (make-tmp-var ',name (slot-value top1 'type))
-         ,(trim-llvm (underscorize name))
-	 (if no-unsigned-wrap "nuw")
-	 (if no-signed-wrap "nsw")
-	 (join ", "
-	       (emit-text-repr top1)
-	       (emit-text-repr (slot-value top2 'value)))))))
+* WITH-QUASIQUOTE-2.0 read-macro-token for local enabling of ` and , overloading
+* wrappers for convenient definition of custom overloading schemes
+* some syntax for opaque operations
 
-And I want to be able to write
-
-(defmacro define-binop-definer (name extra-args res-var-type &body format-strs)
-  ...)
-
-such that the example above would be written something like
-
-(define-binop-definer define-no-wrap-binop (&key no-signed-wrap no-unsigned-wrap)
-  nil
-  (if no-unsigned-wrap "nuw")
-  (if no-signed-wrap "nsw"))
-
-and several others from the same project CG-LLVM (file basics.lisp) would be defined as
-
-(define-binop-definer define-float-binop (&rest flags)
-  nil ; defaults to (slot-value top1 'type)
-  ;; And I want this thing to be correctly spliced!!!
-  ,@(mapcar #'coerce-to-fast-math-flag flags))
-
-(define-binop-definer define-exactable-binop (&key exact)
-  nil
-  (if exact "exact"))
-
-(define-binop-definer define-simple-binop ()
-  nil)
-  
-
-Let's first see, why and where the usual quasiquote approach is broken (and maybe it's not broken at all?)
-
-(defmacro define-binop-definer (binop-name extra-args res-var-type &body list-things)
-  `(defmacro ,binop-name (name &body type-checks)
-    `(defun ,name (op1 op2 ,',@extra-args) ; what EXACTLY should I write here, I always wonder?
-       (let ((top1 (imply-type op1))
-             (top2 (imply-type op2)))
-         (assert (llvm-same-typep top1 top2))
-         ,@type-checks
-         (emit-resulty (make-tmp-var ',name ,',(or res-var-type '(slot-value top1 'type)))
-           ,(trim-llvm (underscorize name))
-	   ,',@list-things ; and here ???
-  	   (join ", "
-	     (emit-text-repr top1)
-	     (emit-text-repr (slot-value top2 'value))))))))
-
-Almost surely that mapcar, that I wrote above, would not work with this, even
-though after some changes ,',@ <-> ,,@ <-> ,@, the rest, probably, would.
-
-
-So, how to fix this, how to make the rules such that transition from macro to macro-macro becomes
-evident, transparent and not complicated at all?
-(at least, macro-macro being on the same order of complexity as usual macro)
+P.S. Name "quasiquote-2.0" comes from "patronus 2.0" spell from www.hpmor.com
+     and has nothing to do with being "the 2.0" version of quasiquote.
