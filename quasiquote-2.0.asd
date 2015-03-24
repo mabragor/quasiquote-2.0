@@ -10,11 +10,12 @@
   :description "Writing macros that write macros. Effortless."
   :author "Alexandr Popolitov <popolit@gmail.com>"
   :license "MIT"
-  :depends-on (#:iterate)
   :version "0.1"
+  :depends-on (#:iterate)
   :components ((:file "package")
                (:file "quasiquote-2.0")
-	       (:file "macros")))
+	       (:file "macros")
+	       (:file "readers")))
 
 (defsystem :quasiquote-2.0-tests
   :description "Tests for QUASIQUOTE-2.0"

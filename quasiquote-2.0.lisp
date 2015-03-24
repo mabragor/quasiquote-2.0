@@ -113,8 +113,8 @@
 (defun path->setfable (path var)
   (let ((res var))
     ;; First element is artifact of extra CAR-ing
-    (iter (for spec in (cdr (reverse path)))
-	  (setf res (list spec res)))
+    (dolist (spec (cdr (reverse path)))
+      (setf res (list spec res)))
     res))
 
 (defun tree->cons-code (tree)
@@ -169,20 +169,26 @@
 (defun really-transform-dig-form (the-form site-paths)
   (let ((gensyms (make-list-form (length site-paths) (gensym "INJECTEE"))))
     (let ((g!-list (gensym "LIST")))
-      (iter (for (site . path) in site-paths)
-	    (for gensym in gensyms)
-	    (collect `(,gensym ,(if (not (splicing-injector (car site)))
-				    (car (injector-subform (car site)))
-				    (mk-splicing-injector-let (car site)))) into lets)
+      (let ((lets nil)
+	    (splicing-setfs nil)
+	    (setfs nil))
+	(do ((site-path site-paths (cdr site-path))
+	     (gensym gensyms (cdr gensym)))
+	    ((not site-path))
+	  (destructuring-bind (site . path) (car site-path)
+	    (push `(,(car gensym) ,(if (not (splicing-injector (car site)))
+				       (car (injector-subform (car site)))
+				       (mk-splicing-injector-let (car site))))
+		  lets)
 	    (if (not (splicing-injector (car site)))
-		(collect `(setf ,(path->setfable path g!-list) ,gensym) into setfs)
-		(collect (mk-splicing-injector-setf path g!-list gensym) into splicing-setfs))
-	    (setf (car site) nil)
-	    (finally (return `(let ,lets
-				(let ((,g!-list ,(tree->cons-code (car (injector-subform the-form)))))
-				  ,@setfs
-				  ,@splicing-setfs
-				  ,g!-list))))))))
+		(push `(setf ,(path->setfable path g!-list) ,(car gensym)) setfs)
+		(push (mk-splicing-injector-setf path g!-list (car gensym)) splicing-setfs))
+	    (setf (car site) nil)))
+	`(let ,(nreverse lets)
+	   (let ((,g!-list ,(tree->cons-code (car (injector-subform the-form)))))
+	     ,@(nreverse setfs)
+	     ,@(nreverse splicing-setfs)
+	     ,g!-list))))))
 
 
 ;; There are two kinds of recursive injection that may happen:
