@@ -59,7 +59,7 @@ are these:
     * if the resulting depth is zero, is evaluates its subform
     * SPLICE splices the form, same as ordinary ,@ does
 
-At "level 1", i.e. when only ` , and ,@ are used, and not, say `` ,, ,', ,,@ ,',@
+At "level 1", i.e. when only \` , and ,@ are used, and not, say \`\` ,, ,', ,,@ ,',@
 this behaves exactly as usual quasiquotation.
 
 ODIG and OINJECT and OSPLICE
