@@ -12,7 +12,7 @@ that make writing macro-writing macros very smooth experience.
 
 (defmacro define-my-macro (name args &body body)
   `(defmacro ,name ,args
-     `(sample-thing-to-macroexpand-to
+     `(sample-thing-to-expand-to
         ,,@body))) ; note the difference from usual way
 
 (define-my-macro foo (x y)
@@ -23,36 +23,60 @@ that make writing macro-writing macros very smooth experience.
   ,@body) ; splicing is also easy
 ```
 
-The "injections" in macros FOO and BAR work as expected, as if I had written
-(using usual quasiquote rules, but will work the same in quasiquote-2.0)
+The "injections" in macros FOO and BAR work as naively expected, as if I had written
 ```lisp
 (defmacro foo (x y)
-  `(sample-thing-to-macroexpand-to ,x ,y))
+  `(sample-thing-to-expand-to ,x ,y))
 
 (defmacro bar (&body body)
-  `(sample-thing-to-macroexpand-to ,@body))
+  `(sample-thing-to-expand-to ,@body))
+
+(macroexpand-1 '(foo a b))
+
+  '(SAMPLE-THING-TO-EXPAND-TO A B)
+
+(macroexpand-1 '(bar a b c))
+
+  '(SAMPLE-THING-TO-EXPAND-TO A B C)
 ```
 
 
 So, how is this effect achieved?
 
 
-DIG and INJECT and SPLICE
+DIG, INJECT and SPLICE
 -------------------------
 
-Well, main technical difference from usual quasiquote is that all essential transformations
-happen at macroexpansion-time, rather than at read-time.
+The transformations of backquote occur at macroexpansion-time and not at read-time.
+It is totally possible not to use any special reader syntax, but just
+underlying macros directly!
 
-At the core is a macro DIG, which expands in the code that generates the
-expression according to the rules:
-  * at the start of walking, evaluation is off (i.e. same as usual quasiquote)
-  * the tree of a form is walked, with keeping track of the "depth"
-  * each DIG, occuring on the way, increases depth by one (hence the name)
-  * each INJECT or SPLICE:
-    * decreases depth by one
-    * if the resulting depth is zero, evaluation is turned on, the result is
-      substituted in the corresponding place
-    * SPLICE splices the form, similarly to ordinary ,@
+At the core is a macro DIG, which expands to the code that generates the
+expression according to the rules, which are roughly these:
+  * each DIG increases "depth" by one (hence the name)
+  * each INJECT or SPLICE decreases "depth" by one
+  * if depth is 0, evaluation is turned on
+  * if depth if not zero (even if it's negative!) evaluation is off
+  * SPLICE splices the form, similarly to ordinary `,@`, INJECT simply injects, same as `,`
+
+```lisp
+;; The example using macros, without special reader syntax
+
+(dig ; depth is 1 here
+  (a b
+     (dig ; depth is 2 here
+       ((inject c) ; this inject is not evaluated, because depth is nonzero
+        (inject (d ;depth becomes 1 here again
+                (inject e) ; and this inject is evaluated, because depth becomes zero
+                ))
+        (inject 2 f) ; this inject with level specification is evaluated, because it
+                     ; decreases depth by 2
+        ))))
+
+
+;; the same example using ENABLE-QUASIQUOTE-2.0 syntax is written as
+`(a b `(,c ,(d ,e) ,,f)) ; note double comma acts different than usually
+```
 
 
 The ENABLE-QUASIQUOTE-2.0 macro just installs reader that reads
