@@ -124,9 +124,30 @@ and ,,,,,@FORM as (SPLICE 5 FORM)
 More examples
 -------------
 
-For fairly complicated example (using ,,,@) see DEFINE-BINOP-DEFINER macro
+For fairly complicated example, which uses ,,,@ and OINJECT (see below),
+ see DEFINE-BINOP-DEFINER macro
 in CG-LLVM (https://github.com/mabragor/cg-llvm/src/basics.lisp),
-desire to write which was a motivation for this whole project.
+desire to write which was the initial impulse for this project.
+
+
+For macro, that is not a macro-writing macro, yet benefits from
+ability to inject using `,` and `,@`, consider JOINING-WITH-COMMA-SPACE macro
+(also from CG-LLVM)
+
+```lisp
+(defmacro joining-with-comma-space (&body body)
+  ;; joinl just joins strings in the list with specified string
+  `(joinl ", " (mapcar #'emit-text-repr
+		       (remove-if-not #'identity  `(,,@body)))))
+
+;; the macro can be then used uniformly over strings and lists of strings
+(defun foo (x y &rest z)
+  (joining-with-comma-space ,x ,y ,@z))
+
+(foo "a" "b" "c" "d")
+  ;; produces
+  "a, b, c, d"
+```
 
 
 ODIG and OINJECT and OSPLICE
