@@ -15,9 +15,11 @@
 (defmacro define-dig-reader (name symbol)
   `(defun ,name (stream char)
      (let ((depth (1+ (read-n-chars stream char))))
-       (list ',symbol
-	     depth
-	     (read stream t nil t)))))
+       (if (equal 1 depth)
+	   (list ',symbol (read stream t nil t))
+	   (list ',symbol
+		 depth
+		 (read stream t nil t))))))
 
 (define-dig-reader dig-reader dig)
 (define-dig-reader odig-reader odig)
@@ -25,11 +27,16 @@
 (defmacro define-inject-reader (name inject-symbol splice-symbol)
   `(defun ,name (stream char)
      (let ((anti-depth (1+ (read-n-chars stream char))))
-       (list (if (char= #\@ (peek-char nil stream t nil t))
-		 (progn (read-char stream t nil t) ',splice-symbol)
-		 ',inject-symbol)
-	     anti-depth
-	     (read stream t nil t)))))
+       (if (equal 1 anti-depth)
+	   (list (if (char= #\@ (peek-char nil stream t nil t))
+		     (progn (read-char stream t nil t) ',splice-symbol)
+		     ',inject-symbol)
+		 (read stream t nil t))
+	   (list (if (char= #\@ (peek-char nil stream t nil t))
+		     (progn (read-char stream t nil t) ',splice-symbol)
+		     ',inject-symbol)
+		 anti-depth
+		 (read stream t nil t))))))
 
 (define-inject-reader inject-reader inject splice)
 (define-inject-reader oinject-reader oinject osplice)

@@ -98,6 +98,37 @@ You may notice the (INJECT 2 ...) form appearing, which is described below.
 At "level 1", i.e. when only \` , and ,@ are used, and not, say \`\` ,, ,', ,,@ ,',@
 this behaves exactly as usual quasiquotation.
 
+
+The optional N argument
+--------------
+
+All quasiquote-2.0 operators accept optional "depth" argument,
+which goes before the form for human readability.
+
+Namely, (DIG N FORM) increases depth by N instead of one and
+(INJECT N FORM) decreases depth by N instead of one.
+
+```lisp
+(DIG 2 (INJECT 2 A))
+
+; gives the same result as
+
+(DIG (INJECT A))
+```
+
+
+In fact, with ENABLE-QUASIQUOTE-2.0, say, ,,,,,FORM (5 quotes) reads as (INJECT 5 FORM)
+and ,,,,,@FORM as (SPLICE 5 FORM)
+
+
+More examples
+-------------
+
+For fairly complicated example (using ,,,@) see DEFINE-BINOP-DEFINER macro
+in CG-LLVM (https://github.com/mabragor/cg-llvm/src/basics.lisp),
+desire to write which was a motivation for this whole project.
+
+
 ODIG and OINJECT and OSPLICE
 ----------------------------
 
@@ -125,34 +156,6 @@ DIG, INJECT and SPLICE, named, respectively, ODIG, OINJECT and OSPLICE.
 ```
 
 
-The N argument
---------------
-
-All quasiquote-2.0 operators accept optional "depth" argument,
-which goes before the form for human readability.
-
-Namely, (DIG N FORM) increases depth by N instead of one and
-(INJECT N FORM) decreases depth by N instead of one.
-
-```lisp
-(DIG 2 (INJECT 2 A))
-
-; is the same as
-
-(DIG (INJECT A))
-```
-
-
-In fact, with ENABLE-QUASIQUOTE-2.0, say, ,,,,,FORM (5 quotes) reads as (INJECT 5 FORM)
-and ,,,,,@FORM as (SPLICE 5 FORM)
-
-
-More examples
--------------
-
-For fairly complicated example (using ,,,@) see DEFINE-BINOP-DEFINER macro
-in CG-LLVM (https://github.com/mabragor/cg-llvm/src/basics.lisp),
-desire to write which was a motivation for this whole project.
 
 TODO
 ----
