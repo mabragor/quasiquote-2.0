@@ -75,3 +75,6 @@
   (is (equal '(a b) (eval (transform-dig-form '(dig ((splice '(a b)))))))))
 
 
+(test are-they-macro
+  (is (not (equal '(dig (a b)) (macroexpand-1 '(dig (a b))))))
+  (is (not (equal '(odig (a b)) (macroexpand-1 '(odig (a b)))))))

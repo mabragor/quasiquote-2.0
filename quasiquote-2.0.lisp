@@ -194,13 +194,17 @@
 	     ,g!-list))))))
 
 
-;; There are two kinds of recursive injection that may happen:
+;; There are few types of recursive injection that may happen:
 ;;   * compile-time injection:
 ;;     (dig (inject (dig (inject a)))) -- this type will be handled automatically by subsequent macroexpansions
 ;;   * run-time injection:
 ;;     (dig (dig (inject 2 a)))
 ;;     and A is '(dig (inject 3 'foo)) -- this one we guard against ? (probably, first we just ignore it
 ;;     -- do not warn about it, and then it wont really happen.
+;;   * macroexpanded compile-time injection:
+;;     (dig (inject (my-macro a b c))),
+;;     where MY-MACRO expands into, say (splice (list 'a 'b 'c))
+;;     This is *not* handled automatically, and therefore we must do it by hand.
 
       
 ;; OK, now how to implement splicing ?
