@@ -176,6 +176,47 @@ DIG, INJECT and SPLICE, named, respectively, ODIG, OINJECT and OSPLICE.
   '(DIG (OINJECT (A (INJECT B))))
 ```
 
+MACRO-INJECT and MACRO-SPLICE
+-----------------------------
+
+This section is not implemented yet, it's just the idea that needs to be done.
+
+Sometimes you want to abstract away the list-generating patterns, that is
+
+```lisp
+`(a b c ,(triple-inject x))
+```
+
+to be equivalent to you literally typing
+
+```lisp
+`(a b c ,x ,x ,x)
+```
+
+However, mixing this with usual INJECTs and SPLICEs would lead to a lot of
+confusion.
+
+For that reason, new set of injectors: MACRO-INJECT, MACRO-SPLICE, MACRO-INJECT-ALL
+and MACRO-SPLICE-ALL are proposed.
+
+The MACRO-INJECT is just like the usual inject, except, when the form to be injected
+is a macro, it expands the macro *once*, and continues parsing the macroexpanded body
+as if it was typed in dig form from the start
+
+MACRO-ALL-INJECT does the same, except using MACROEXPAND-ALL instread of MACROEXPAND-1
+(i.e. it expands until form is no longer a macro)
+
+MACRO-SPLICE splices the result of macro-expansion and I have no idea on how
+MACRO-SPLICE-ALL should work.
+
+Thus, the refined version of starting example would be
+
+```lisp
+(defmacro triple-inject (x)
+  (dig 2 (inject ,x) (inject ,x) (inject ,x)))
+
+`(a b c (macro-splice (triple-inject x)))
+```
 
 
 TODO
