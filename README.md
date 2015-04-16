@@ -179,7 +179,22 @@ DIG, INJECT and SPLICE, named, respectively, ODIG, OINJECT and OSPLICE.
 MACRO-INJECT and MACRO-SPLICE
 -----------------------------
 
-This section is not implemented yet, it's just the idea that needs to be done.
+Mostly, this section is not implemented yet, it's just the idea that needs to be done.
+
+However MACRO-INJECT and OMACRO-INJECT already work
+```lisp
+;; with quasiquote-2.0 syntax turned on
+(defmacro triple-code (x)
+  ``((inject ,x) (inject ,x) (inject ,x)))
+
+(let (x 0)
+  `(dig (a (macro-inject (triple-code (incf x)))))
+;; yields
+'(a (1 2 3))
+```
+
+OMACRO-INJECT is, as usual, opaque variant of MACRO-INJECT.
+
 
 Sometimes you want to abstract away the list-generating patterns, that is
 
