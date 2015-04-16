@@ -33,7 +33,8 @@
   (setf *injectors* nil))
 
 (defparameter *known-injectors* '(inject splice oinject osplice
-				  macro-inject omacro-inject))
+				  macro-inject omacro-inject
+				  macro-splice omacro-splice))
 
 (defun injector-form-p (form)
   (and (consp form)
@@ -79,7 +80,9 @@
 	(macroexpand-1 form *env*))))
 
 (defparameter *macro-handlers* `((macro-inject . ,#'handle-macro-inject)
-				 (omacro-inject . ,#'handle-macro-inject)))
+				 (omacro-inject . ,#'handle-macro-inject)
+				 (macro-splice . ,#'handle-macro-inject)
+				 (omacro-splice . ,#'handle-macro-inject)))
 
 (defun get-macro-handler (sym)
   (or (cdr (assoc sym *macro-handlers*))
@@ -88,8 +91,20 @@
 	
 
 (defun macroexpand-macroinjector (place)
-  (setf (car place) (funcall (get-macro-handler (caar place))
-			     (car (injector-subform (car place))))))
+  (if (not (splicing-injector (car place)))
+      (progn (setf (car place) (funcall (get-macro-handler (caar place))
+					(car (injector-subform (car place)))))
+	     nil)
+      (let ((new-forms (funcall (get-macro-handler (caar place))
+				(car (injector-subform (car place))))))
+	(cond ((not new-forms) (error "For now we don't do it, but shortly we will"))
+	      ((atom new-forms) (error "We need to splice the macroexpansion, but got atom: ~a" new-forms))
+	      (t (setf (car place) (car new-forms))
+		 (let ((tail (cdr place)))
+		   (setf (cdr place) (cdr new-forms)
+			 (cdr (last new-forms)) tail))))
+	t)))
+	    
 
 (defun search-all-active-sites (form path toplevel-p)
   ;; (format t "SEARCH-ALL-ACTIVE-SITES: got form ~a~%" form)
@@ -116,8 +131,10 @@
 		   ;; (format t "Got injector form ~a ~a ~a~%" form *depth* (injector-level (car form)))
 		   (if (equal *depth* (injector-level (car form)))
 		       (if (macro-injector-p (car form))
-			   (progn (macroexpand-macroinjector form)
-				  (search-all-active-sites (car form) (cons 'car path) nil))
+			   (if (macroexpand-macroinjector form)
+			       (return-from search-all-active-sites
+				 (search-all-active-sites form path nil))
+			       (search-all-active-sites (car form) (cons 'car path) nil))
 			   (progn (push (cons form (cons 'car path)) *injectors*)
 				  nil))
 		       (if (transparent-p (car form))
@@ -151,28 +168,37 @@
       `(cons ,(tree->cons-code (car tree))
 	     ,(tree->cons-code (cdr tree)))))
 
-(defparameter *known-splicers* '(splice osplice))
+(defparameter *known-splicers* '(splice osplice macro-splice omacro-splice))
 
 (defun splicing-injector (form)
   (and (consp form)
        (find (car form) *known-splicers* :test #'eq)))
 
-(defparameter *known-macro-injectors* '(macro-inject omacro-inject))
+(defparameter *known-macro-injectors* '(macro-inject omacro-inject
+					macro-splice omacro-splice))
 
 (defun macro-injector-p (form)
   (and (consp form)
        (find (car form) *known-macro-injectors* :test #'eq)))
 
+(defparameter *void-elt* nil)
+(defparameter *void-filter-needed* nil)
+
 (defun transform-dig-form (form)
   (let ((the-form (copy-tree form)))
-    (multiple-value-bind (site-paths cmd) (%codewalk-dig-form the-form)
-      (cond ((eq cmd :just-quote-it!)
-	     `(quote ,(car (injector-subform the-form))))
-	    ((eq cmd :just-form-it!)
-	     (car (injector-subform (car (injector-subform the-form)))))
-	    (t (if (not site-paths)
-		   (tree->cons-code (car (injector-subform the-form)))
-		   (really-transform-dig-form the-form site-paths)))))))
+    (let ((*void-filter-needed* nil)
+	  (*void-elt* (gensym "VOID")))
+      (multiple-value-bind (site-paths cmd) (%codewalk-dig-form the-form)
+	(cond ((eq cmd :just-quote-it!)
+	       `(quote ,(car (injector-subform the-form))))
+	      ((eq cmd :just-form-it!)
+	       (car (injector-subform (car (injector-subform the-form)))))
+	      (t (let ((cons-code (if (not site-paths)
+				      (tree->cons-code (car (injector-subform the-form)))
+				      (really-transform-dig-form the-form site-paths))))
+		   (if (not *void-filter-needed*)
+		       cons-code
+		       `(filter-out-voids ,cons-code ',*void-elt*)))))))))
 
 (defmacro make-list-form (o!-n form)
   (let ((g!-n (gensym "N"))
