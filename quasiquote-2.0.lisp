@@ -2,6 +2,7 @@
 
 (in-package #:quasiquote-2.0)
 
+(defparameter *env* nil)
 
 (defmacro nonsense-error (str)
   `(error ,(concatenate 'string
@@ -18,6 +19,7 @@
 (define-nonsense-when-bare oinject)
 (define-nonsense-when-bare splice)
 (define-nonsense-when-bare osplice)
+(define-nonsense-when-bare macro-inject)
 
 (defparameter *depth* 0)
 
@@ -30,7 +32,8 @@
 (defun reset-injectors ()
   (setf *injectors* nil))
 
-(defparameter *known-injectors* '(inject splice oinject osplice))
+(defparameter *known-injectors* '(inject splice oinject osplice
+				  macro-inject omacro-inject))
 
 (defun injector-form-p (form)
   (and (consp form)
@@ -46,9 +49,10 @@
       (values (cdr form) '(cdr))
       (values (cddr form) '(cddr))))
 
+(defparameter *opaque-injectors* '(odig oinject osplice omacro-inject))
+
 (defun transparent-p (form)
-  (or (eq (car form) 'dig)
-      (eq (car form) 'inject)))
+  (not (find (car form) *opaque-injectors* :test #'eq)))
 
 (defun look-into-injector (form path)
   (let ((*depth* (- *depth* (injector-level form))))
@@ -65,6 +69,27 @@
   (let ((*depth* (+ *depth* (injector-level form))))
     (multiple-value-bind (subform subpath) (injector-subform form)
       (search-all-active-sites subform (append subpath path) nil))))
+
+(defun handle-macro-inject (form)
+  (if (atom form)
+      (error "Sorry, symbol-macros are not implemented for now")
+      (let ((fun (macro-function (car form) *env*)))
+	(if (not fun)
+	    (error "The subform of MACRO-INJECT is supposed to be macro, perhaps, something went wrong..."))
+	(macroexpand-1 form *env*))))
+
+(defparameter *macro-handlers* `((macro-inject . ,#'handle-macro-inject)
+				 (omacro-inject . ,#'handle-macro-inject)))
+
+(defun get-macro-handler (sym)
+  (or (cdr (assoc sym *macro-handlers*))
+      (error "Don't know how to handle this macro injector: ~a" sym)))
+
+	
+
+(defun macroexpand-macroinjector (place)
+  (setf (car place) (funcall (get-macro-handler (caar place))
+			     (car (injector-subform (car place))))))
 
 (defun search-all-active-sites (form path toplevel-p)
   ;; (format t "SEARCH-ALL-ACTIVE-SITES: got form ~a~%" form)
@@ -90,8 +115,11 @@
 		  ((injector-form-p (car form))
 		   ;; (format t "Got injector form ~a ~a ~a~%" form *depth* (injector-level (car form)))
 		   (if (equal *depth* (injector-level (car form)))
-		       (progn (push (cons form (cons 'car path)) *injectors*)
-			      nil)
+		       (if (macro-injector-p (car form))
+			   (progn (macroexpand-macroinjector form)
+				  (search-all-active-sites (car form) (cons 'car path) nil))
+			   (progn (push (cons form (cons 'car path)) *injectors*)
+				  nil))
 		       (if (transparent-p (car form))
 			   (look-into-injector (car form) (cons 'car path)))))
 		  (t (search-all-active-sites (car form) (cons 'car path) nil)))
@@ -102,7 +130,7 @@
 (defun codewalk-dig-form (form)
   (reset-injectors)
   (let ((it (search-all-active-sites form nil t)))
-    (values *injectors* it)))
+    (values (nreverse *injectors*) it)))
 
 (defun %codewalk-dig-form (form)
   (if (not (dig-form-p form))
@@ -128,6 +156,12 @@
 (defun splicing-injector (form)
   (and (consp form)
        (find (car form) *known-splicers* :test #'eq)))
+
+(defparameter *known-macro-injectors* '(macro-inject omacro-inject))
+
+(defun macro-injector-p (form)
+  (and (consp form)
+       (find (car form) *known-macro-injectors* :test #'eq)))
 
 (defun transform-dig-form (form)
   (let ((the-form (copy-tree form)))

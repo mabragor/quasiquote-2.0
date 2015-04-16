@@ -19,7 +19,7 @@
   (is (equal '(nil :just-quote-it!) (multiple-value-list (%codewalk-dig-form '(dig nil)))))
   (is (equal '(nil :just-form-it!) (multiple-value-list (%codewalk-dig-form '(dig (inject a))))))
   (is (equal '(nil :just-form-it!) (multiple-value-list (%codewalk-dig-form '(dig 2 (inject 2 a))))))
-  (is (equal '(((((inject d)) car cdr cdr cdr car) (((inject b) c (inject d)) car cdr car)) nil)
+  (is (equal '(((((inject b) c (inject d)) car cdr car) (((inject d)) car cdr cdr cdr car)) nil)
 	     (multiple-value-list (%codewalk-dig-form '(dig (a (inject b) c (inject d)))))))
   (is (equal '(nil nil)
 	     (multiple-value-list (%codewalk-dig-form '(dig (dig (a (inject b) c (inject d))))))))
@@ -78,3 +78,28 @@
 (test are-they-macro
   (is (not (equal '(dig (a b)) (macroexpand-1 '(dig (a b))))))
   (is (not (equal '(odig (a b)) (macroexpand-1 '(odig (a b)))))))
+
+
+(defmacro triple-var (x)
+  `((inject ,x) (inject ,x) (inject ,x)))
+
+(test correct-order-of-effects
+  (is (equal '(a 1 2 3) (let ((x 0))
+			  (dig (a (inject (incf x)) (inject (incf x)) (inject (incf x)))))))
+  (is (equal '(a (((1))) 2)
+	     (let ((x 0))
+	       (dig (a ((((inject (incf x))))) (inject (incf x))))))))
+
+(test macro-inject
+  (is (equal '(a (3 3 3)) (let ((x 3))
+			    (dig (a (macro-inject (triple-var x)))))))
+  (is (equal '(a (1 2 3)) (let ((x 0))
+			    (dig (a (macro-inject (triple-var (incf x))))))))
+  (is (equal '(a (1 2 3 4 5))
+	     (let ((x 0))
+	       (macrolet ((frob (form n)
+			    (mapcar (lambda (x)
+				      `(inject ,x))
+				    (make-list n :initial-element form))))
+		 (dig (a (macro-inject (frob (incf x) 5)))))))))
+	       
