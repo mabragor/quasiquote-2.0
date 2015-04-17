@@ -97,7 +97,9 @@
 	     nil)
       (let ((new-forms (funcall (get-macro-handler (caar place))
 				(car (injector-subform (car place))))))
-	(cond ((not new-forms) (error "For now we don't do it, but shortly we will"))
+	(cond ((not new-forms)
+	       (setf *void-filter-needed* t
+		     (car place) *void-elt*))
 	      ((atom new-forms) (error "We need to splice the macroexpansion, but got atom: ~a" new-forms))
 	      (t (setf (car place) (car new-forms))
 		 (let ((tail (cdr place)))
@@ -183,6 +185,10 @@
 
 (defparameter *void-elt* nil)
 (defparameter *void-filter-needed* nil)
+
+(defun filter-out-voids (lst void-sym)
+  (declare (ignore void-sym))
+  lst)
 
 (defun transform-dig-form (form)
   (let ((the-form (copy-tree form)))
