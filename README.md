@@ -185,59 +185,38 @@ DIG, INJECT and SPLICE, named, respectively, ODIG, OINJECT and OSPLICE.
 MACRO-INJECT and MACRO-SPLICE
 -----------------------------
 
-Mostly, this section is not implemented yet, it's just the idea that needs to be done.
+Sometimes you just want to abstract-out some common injection patterns...
+That is, you want macros, that expand into common injection patterns.
+However, you want this only sometimes, and only in special circumstances.
+So it won't do, if INJECT and SPLICE just expanded something, whenever it
+turned out to be macro. For that, use MACRO-INJECT and MACRO-SPLICE.
 
-However MACRO-INJECT and OMACRO-INJECT already work
 ```lisp
 ;; with quasiquote-2.0 syntax turned on
-(defmacro triple-code (x)
-  ``((inject ,x) (inject ,x) (inject ,x)))
+(defmacro inject-n-times (form n)
+  (make-list n :initial-element `(inject ,form)))
 
 (let (x 0)
-  `(dig (a (macro-inject (triple-code (incf x)))))
+  `(dig (a (macro-inject (inject-n-times (incf x) 3)))))
 ;; yields
 '(a (1 2 3))
+
+;;and same with MACRO-SPLICE
+(let (x 0)
+  `(dig (a (macro-splice (inject-n-times (incf x) 3)))))
+;; yields
+'(a 1 2 3)
 ```
 
-OMACRO-INJECT is, as usual, opaque variant of MACRO-INJECT.
+OMACRO-INJECT and OMACRO-SPLICE are, as usual, opaque variants of MACRO-INJECT and MACRO-SPLICE.
 
+Both MACRO-INJECT and MACRO-SPLICE expand their subform exactly once (using MACROEXPAND-1),
+before plugging it into list.
+If you want to expand as much as it's possible, use MACRO-INJECT-ALL and MACRO-SPLICE-ALL,
+which expand using MACROEXPAND before injecting/splicing, respectively.
+That implies, that while subform of MACRO-INJECT and MACRO-SPLICE is checked to be
+macro-form, the subform of MACRO-INJECT-ALL is not.
 
-Sometimes you want to abstract away the list-generating patterns, that is
-
-```lisp
-`(a b c ,(triple-inject x))
-```
-
-to be equivalent to you literally typing
-
-```lisp
-`(a b c ,x ,x ,x)
-```
-
-However, mixing this with usual INJECTs and SPLICEs would lead to a lot of
-confusion.
-
-For that reason, new set of injectors: MACRO-INJECT, MACRO-SPLICE, MACRO-INJECT-ALL
-and MACRO-SPLICE-ALL are proposed.
-
-The MACRO-INJECT is just like the usual inject, except, when the form to be injected
-is a macro, it expands the macro *once*, and continues parsing the macroexpanded body
-as if it was typed in dig form from the start
-
-MACRO-ALL-INJECT does the same, except using MACROEXPAND-ALL instread of MACROEXPAND-1
-(i.e. it expands until form is no longer a macro)
-
-MACRO-SPLICE splices the result of macro-expansion and I have no idea on how
-MACRO-SPLICE-ALL should work.
-
-Thus, the refined version of starting example would be
-
-```lisp
-(defmacro triple-inject (x)
-  (dig 2 (inject ,x) (inject ,x) (inject ,x)))
-
-`(a b c (macro-splice (triple-inject x)))
-```
 
 
 TODO

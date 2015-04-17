@@ -34,7 +34,9 @@
 
 (defparameter *known-injectors* '(inject splice oinject osplice
 				  macro-inject omacro-inject
-				  macro-splice omacro-splice))
+				  macro-splice omacro-splice
+				  macro-inject-all omacro-inject-all
+				  macro-splice-all omacro-splice-all))
 
 (defun injector-form-p (form)
   (and (consp form)
@@ -71,18 +73,28 @@
     (multiple-value-bind (subform subpath) (injector-subform form)
       (search-all-active-sites subform (append subpath path) nil))))
 
-(defun handle-macro-inject (form)
+(defun handle-macro-1 (form)
   (if (atom form)
       (error "Sorry, symbol-macros are not implemented for now")
       (let ((fun (macro-function (car form) *env*)))
 	(if (not fun)
-	    (error "The subform of MACRO-INJECT is supposed to be macro, perhaps, something went wrong..."))
+	    (error "The subform of MACRO-1 injector is supposed to be macro, perhaps, something went wrong..."))
 	(macroexpand-1 form *env*))))
 
-(defparameter *macro-handlers* `((macro-inject . ,#'handle-macro-inject)
-				 (omacro-inject . ,#'handle-macro-inject)
-				 (macro-splice . ,#'handle-macro-inject)
-				 (omacro-splice . ,#'handle-macro-inject)))
+(defun handle-macro-all (form)
+  (if (atom form)
+      (error "Sorry, symbol-macros are not implemented for now")
+      (macroexpand form *env*)))
+
+
+(defparameter *macro-handlers* `((macro-inject . ,#'handle-macro-1)
+				 (omacro-inject . ,#'handle-macro-1)
+				 (macro-splice . ,#'handle-macro-1)
+				 (omacro-splice . ,#'handle-macro-1)
+				 (macro-inject-all . ,#'handle-macro-all)
+				 (omacro-inject-all . ,#'handle-macro-all)
+				 (macro-splice-all . ,#'handle-macro-all)
+				 (omacro-splice-all . ,#'handle-macro-all)))
 
 (defun get-macro-handler (sym)
   (or (cdr (assoc sym *macro-handlers*))
@@ -170,14 +182,19 @@
       `(cons ,(tree->cons-code (car tree))
 	     ,(tree->cons-code (cdr tree)))))
 
-(defparameter *known-splicers* '(splice osplice macro-splice omacro-splice))
+(defparameter *known-splicers* '(splice osplice
+				 macro-splice omacro-splice
+				 macro-splice-all omacro-splice-all))
 
 (defun splicing-injector (form)
   (and (consp form)
        (find (car form) *known-splicers* :test #'eq)))
 
 (defparameter *known-macro-injectors* '(macro-inject omacro-inject
-					macro-splice omacro-splice))
+					macro-splice omacro-splice
+					macro-inject-all omacro-inject-all
+					macro-splice-all omacro-splice-all
+					))
 
 (defun macro-injector-p (form)
   (and (consp form)

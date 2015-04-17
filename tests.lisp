@@ -90,7 +90,7 @@
 	     (let ((x 0))
 	       (dig (a ((((inject (incf x))))) (inject (incf x))))))))
 
-(test macro-inject
+(test macro-injects
   (is (equal '(a (3 3 3)) (let ((x 3))
 			    (dig (a (macro-inject (triple-var x)))))))
   (is (equal '(a (1 2 3)) (let ((x 0))
@@ -98,7 +98,9 @@
   (macrolet ((frob (form n)
 	       (mapcar (lambda (x)
 			 `(inject ,x))
-		       (make-list n :initial-element form))))
+		       (make-list n :initial-element form)))
+	     (frob1 (form)
+	       `(frob ,form 4)))
     (is (equal '(a (1 2 3 4 5))
 	       (let ((x 0))
 		 (dig (a (macro-inject (frob (incf x) 5)))))))
@@ -107,7 +109,14 @@
 		 (dig (a (macro-splice (frob (incf x) 5)))))))
     (is (equal '(a)
 	       (let ((x 0))
-		 (dig (a (macro-splice (frob (incf x) 0)))))))))
+		 (dig (a (macro-splice (frob (incf x) 0)))))))
+    (is (equal '(a frob (incf x) 4)
+	       (let ((x 0))
+		 (dig (a (macro-splice (frob1 (incf x))))))))
+    (is (equal '(a 1 2 3 4)
+	       (let ((x 0))
+		 (dig (a (macro-splice-all (frob1 (incf x))))))))))
+    
 	       
 		 
 	       
