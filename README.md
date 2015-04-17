@@ -7,6 +7,12 @@ Well, it shouldn't!
 quasiquote-2.0 defines slightly different rules for quasiquotation,
 that make writing macro-writing macros very smooth experience.
 
+NOTE: quasiquote-2.0 does horrible things to shared structure!!!
+(it does a lot of COPY-TREE's, so shared-ness is destroyed).
+So, it's indeed a tool to construct code (where it does not matter much if the
+structure is shared or not) and not the data (or, at least, not the data with shared structure)
+
+
 ```lisp
 (quasiquote-2.0:enable-quasiquote-2.0)
 

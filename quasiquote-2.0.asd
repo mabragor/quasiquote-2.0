@@ -10,7 +10,7 @@
   :description "Writing macros that write macros. Effortless."
   :author "Alexandr Popolitov <popolit@gmail.com>"
   :license "MIT"
-  :version "0.1"
+  :version "0.3"
   :depends-on (#:iterate)
   :components ((:file "package")
                (:file "quasiquote-2.0")
