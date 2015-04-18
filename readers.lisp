@@ -24,22 +24,31 @@
 (define-dig-reader dig-reader dig)
 (define-dig-reader odig-reader odig)
 
-(defmacro define-inject-reader (name inject-symbol splice-symbol)
-  `(defun ,name (stream char)
-     (let ((anti-depth (1+ (read-n-chars stream char))))
-       (if (equal 1 anti-depth)
-	   (list (if (char= #\@ (peek-char nil stream t nil t))
-		     (progn (read-char stream t nil t) ',splice-symbol)
-		     ',inject-symbol)
-		 (read stream t nil t))
-	   (list (if (char= #\@ (peek-char nil stream t nil t))
-		     (progn (read-char stream t nil t) ',splice-symbol)
-		     ',inject-symbol)
-		 anti-depth
-		 (read stream t nil t))))))
+(defun expect-char (char stream)
+  (let ((new-char (read-char stream t nil t)))
+    (if (char= char new-char)
+	t
+	(unread-char new-char stream))))
 
-(define-inject-reader inject-reader inject splice)
-(define-inject-reader oinject-reader oinject osplice)
+(defun guess-injector-name (opaque-p macro-p all-p splicing-p)
+  (intern (concatenate 'string
+		       (if opaque-p "O" "")
+		       (if macro-p "MACRO-" "")
+		       (if splicing-p "SPLICE" "INJECT")
+		       (if all-p "-ALL" ""))))
+
+(defun inject-reader (stream char)
+  (let ((anti-depth (1+ (read-n-chars stream char)))
+	(extended-syntax (expect-char #\! stream)))
+    (let ((injector-name (if (not extended-syntax)
+			     (guess-injector-name nil nil nil (expect-char #\@ stream))
+			     (guess-injector-name (expect-char #\o stream)
+						  (expect-char #\m stream)
+						  (expect-char #\a stream)
+						  (expect-char #\@ stream)))))
+      `(,injector-name ,@(if (not (equal 1 anti-depth)) `(,anti-depth))
+		       ,(read stream t nil t)))))
+
 
 
 (defvar *previous-readtables* nil)

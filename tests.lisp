@@ -120,5 +120,13 @@
 		 (dig (a (macro-splice-all (frob1 (incf x))))))))))
     
 	       
-		 
-	       
+(quasiquote-2.0:enable-quasiquote-2.0)
+
+(test reader
+  (is (equal '(inject x) ',x))
+  (is (equal '(inject 3 x) ',,,x))
+  (is (equal '(splice x) ',@x))
+  (is (equal '(splice 3 x) ',,,@x))
+  (is (equal '(omacro-splice-all 4 x) ',,,,!oma@x))
+  (is (equal '(inject 4 oma@x) ',,,,oma@x)))
+

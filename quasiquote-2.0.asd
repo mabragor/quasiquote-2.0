@@ -22,7 +22,8 @@
   :licence "MIT"
   :depends-on (:quasiquote-2.0 :fiveam)
   :components ((:file "tests")
-	       (:file "tests-macro")))
+	       (:file "tests-macro")
+	       ))
 
 (defmethod perform ((op test-op) (sys (eql (find-system :quasiquote-2.0))))
   (load-system :quasiquote-2.0)
