@@ -35,7 +35,8 @@
 		       (if opaque-p "O" "")
 		       (if macro-p "MACRO-" "")
 		       (if splicing-p "SPLICE" "INJECT")
-		       (if all-p "-ALL" ""))))
+		       (if all-p "-ALL" ""))
+	  "QUASIQUOTE-2.0"))
 
 (defun inject-reader (stream char)
   (let ((anti-depth (1+ (read-n-chars stream char)))
