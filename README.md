@@ -218,6 +218,34 @@ That implies, that while subform of MACRO-INJECT and MACRO-SPLICE is checked to 
 macro-form, the subform of MACRO-INJECT-ALL is not.
 
 
+Terse syntax of the ENABLE-QUASIQUOTE-2.0
+-----------------------------------------
+
+Of course, typing all those MACRO-INJECT-ALL, or OMACRO-SPLICE-ALL or whatever explicitly
+every time you want this special things is kind of clumsy. For that, default reader
+of quasiquote-2.0 provides extended syntax
+
+```lisp
+',,,,!oma@x
+
+;; reads as
+'(OMACRO-SPLICE-ALL 4 X)
+```
+
+That is, the regexp of the syntax is
+[,]+![o][m][a][@]<whatever>
+
+As usual, number of commas determine the anti-depth of the injector, exclamation mark
+turns on the syntax, if `o` is present, opaque version of injector will be used,
+if `m` is present, macro-expanding version of injector will be used and if
+`a` is present, macro-all version of injector will be used.
+
+Note: it's possible to write ,!ax, which will read as (INJECT-ALL X), but
+this will not correspond to the actual macro name.
+
+Note: it was necessary to introduce special escape-char for extended syntax,
+since usual idioms like `,args` would otherwise be completely screwed.
+
 
 TODO
 ----
