@@ -130,3 +130,8 @@
   (is (equal '(omacro-splice-all 4 x) ',,,,!oma@x))
   (is (equal '(inject 4 oma@x) ',,,,oma@x)))
 
+(test macro-splices
+  (macrolet ((splicer (x)
+	       ``(splice ,x)))
+    (is (equal '(a 1 2 3) (let ((x '(1 2 3)))
+			    `(a ,!m(splicer x)))))))

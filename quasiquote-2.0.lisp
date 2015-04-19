@@ -145,10 +145,9 @@
 		   ;; (format t "Got injector form ~a ~a ~a~%" form *depth* (injector-level (car form)))
 		   (if (equal *depth* (injector-level (car form)))
 		       (if (macro-injector-p (car form))
-			   (if (macroexpand-macroinjector form)
-			       (return-from search-all-active-sites
-				 (search-all-active-sites form path nil))
-			       (search-all-active-sites (car form) (cons 'car path) nil))
+			   (progn (macroexpand-macroinjector form)
+				  (return-from search-all-active-sites
+				    (search-all-active-sites form path nil)))
 			   (progn (push (cons form (cons 'car path)) *injectors*)
 				  nil))
 		       (if (transparent-p (car form))
