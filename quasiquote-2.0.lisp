@@ -299,7 +299,8 @@
 	`(let ,(nreverse lets)
 	   (let ((,g!-list ,(tree->cons-code (car (injector-subform the-form)))))
 	     ,@(nreverse setfs)
-	     ,@(nreverse splicing-setfs)
+	     ;; we apply splicing setf in reverse order for them not to bork the paths of each other
+	     ,@splicing-setfs
 	     ,g!-list))))))
 
 
